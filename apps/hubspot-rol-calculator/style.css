@@ -1,0 +1,32 @@
+:root {
+    --primary: #111827; /* Dark Grey */
+    --accent: #10B981;  /* Success Green */
+    --danger: #EF4444;  /* Warning Red */
+    --bg: #F3F4F6;
+    --card: #FFFFFF;
+}
+
+body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--primary); display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+.calculator-container { background: var(--card); padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); width: 100%; max-width: 480px; }
+header { text-align: center; margin-bottom: 2rem; }
+.brand { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #6B7280; font-weight: 700; margin-bottom: 0.5rem; }
+h1 { margin: 0; font-size: 1.5rem; }
+.subtitle { color: #6B7280; font-size: 0.9rem; margin-top: 0.5rem; }
+
+.input-section { margin-bottom: 2rem; }
+.input-group { margin-bottom: 1rem; display: flex; flex-direction: column; }
+label { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+input { padding: 0.75rem; border: 1px solid #D1D5DB; border-radius: 6px; font-size: 1rem; }
+small { color: #6B7280; font-size: 0.75rem; margin-top: 0.25rem; }
+
+.results-section { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.result-card { background: #F9FAFB; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #E5E7EB; }
+.result-card h3 { margin: 0 0 0.5rem 0; font-size: 0.8rem; text-transform: uppercase; color: #6B7280; }
+.big-number { font-size: 1.25rem; font-weight: 800; margin-bottom: 0.25rem; }
+.result-card p { font-size: 0.7rem; color: #6B7280; margin: 0; line-height: 1.2; }
+
+.result-card.negative .big-number { color: var(--danger); }
+.result-card.positive .big-number { color: var(--accent); }
+
+button { width: 100%; padding: 1rem; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 1.5rem; transition: opacity 0.2s; }
+button:hover { opacity: 0.9; }
