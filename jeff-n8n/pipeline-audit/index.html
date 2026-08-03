@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>n8n Scrape to Claude Pipeline Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --hull:#0e141a;
+  --bay:#151e26;
+  --bay2:#1b262f;
+  --rule:#28353f;
+  --ink:#e6ece9;
+  --dim:#7f8f99;
+  --live:#3fb8bd;
+  --burn:#e07a35;
+  --fail:#d24a3c;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --body:"DM Sans","Helvetica Neue",sans-serif;
+  --display:"Syne","DM Sans",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--hull);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+  position:relative;
+}
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;opacity:0.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 96px}
+
+/* header rail */
+.rail{
+  border-bottom:0.5px solid var(--rule);
+  background:rgba(14,20,26,0.82);
+  backdrop-filter:blur(10px);
+  position:sticky;top:0;z-index:50;
+}
+.rail-in{max-width:1180px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.mark{font-family:var(--display);font-weight:800;font-size:15px;letter-spacing:-0.02em}
+.mark span{color:var(--burn)}
+.rail-sep{width:0.5px;height:20px;background:var(--rule)}
+.rail-title{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:0.04em;text-transform:uppercase}
+.rail-tag{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--dim);border:0.5px solid var(--rule);padding:4px 9px;border-radius:2px}
+
+/* masthead */
+.mast{padding:64px 0 40px;max-width:760px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--burn);margin-bottom:18px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,4.4vw,50px);line-height:1.04;letter-spacing:-0.03em;margin-bottom:20px}
+h1 em{font-style:normal;color:var(--burn)}
+.lede{color:var(--dim);font-size:17px;max-width:640px}
+.lede b{color:var(--ink);font-weight:500}
+
+/* console */
+.console{border:0.5px solid var(--rule);background:var(--bay);border-radius:3px;margin-top:14px}
+.console-head{
+  display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:0.5px solid var(--rule);
+  font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--dim);
+}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--live)}
+@media (prefers-reduced-motion: no-preference){
+  .dot{animation:pulse 2.4s var(--ease) infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+.ctrl{padding:20px;border-right:0.5px solid var(--rule)}
+.ctrl:last-child{border-right:none}
+.ctrl label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+.ctrl output{display:block;font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-0.02em;margin-bottom:12px}
+.ctrl .unit{font-size:12px;color:var(--dim);font-weight:400;letter-spacing:0}
+input[type=range]{width:100%;height:2px;background:var(--rule);appearance:none;-webkit-appearance:none;outline:none;border-radius:2px}
+input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--burn);cursor:pointer;border:2px solid var(--bay)}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:var(--burn);cursor:pointer;border:2px solid var(--bay)}
+input[type=range]:focus-visible{outline:2px solid var(--live);outline-offset:6px}
+select{
+  width:100%;background:var(--bay2);color:var(--ink);border:0.5px solid var(--rule);
+  font-family:var(--mono);font-size:12px;padding:9px 10px;border-radius:2px;cursor:pointer;
+}
+select:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+
+/* lanes */
+.lanes{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:0.5px solid var(--rule)}
+.lane{padding:24px 20px 26px;border-right:0.5px solid var(--rule)}
+.lane:last-child{border-right:none}
+.lane-a{background:linear-gradient(180deg,rgba(210,74,60,0.05),transparent 55%)}
+.lane-b{background:linear-gradient(180deg,rgba(63,184,189,0.05),transparent 55%)}
+.lane-name{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.lane-a .lane-name{color:var(--fail)}
+.lane-b .lane-name{color:var(--live)}
+.lane-sub{font-size:13px;color:var(--dim);margin-bottom:20px;min-height:38px}
+
+.chain{display:flex;flex-direction:column;gap:1px;margin-bottom:22px}
+.node{
+  display:flex;align-items:center;gap:11px;padding:9px 12px;background:var(--bay2);
+  border-left:2px solid var(--rule);font-family:var(--mono);font-size:11.5px;
+  transition:border-color 0.4s var(--ease),background 0.4s var(--ease);
+}
+.node .nm{flex:1;color:var(--ink)}
+.node .st{font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--dim)}
+.node.ok{border-left-color:var(--live)}
+.node.ok .st{color:var(--live)}
+.node.warn{border-left-color:var(--burn)}
+.node.warn .st{color:var(--burn)}
+.node.bad{border-left-color:var(--fail);background:rgba(210,74,60,0.09)}
+.node.bad .st{color:var(--fail)}
+.node.bad .nm{color:#f0c9c4}
+
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:0.5px solid var(--rule)}
+.cell{background:var(--bay);padding:14px 13px}
+.cell k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
+.cell v{display:block;font-family:var(--mono);font-size:21px;font-weight:600;letter-spacing:-0.02em;line-height:1.1}
+.cell.hot v{color:var(--fail)}
+.cell.warm v{color:var(--burn)}
+.cell.cool v{color:var(--live)}
+.cell small{display:block;font-size:11px;color:var(--dim);margin-top:5px;font-family:var(--body)}
+
+/* delta */
+.delta{
+  border-top:0.5px solid var(--rule);padding:22px 24px;
+  display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+}
+.delta-k{font-family:var(--mono);font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--dim)}
+.delta-v{font-family:var(--mono);font-size:30px;font-weight:600;color:var(--live);letter-spacing:-0.02em}
+.delta-note{font-size:13px;color:var(--dim);margin-left:auto;max-width:430px;text-align:right}
+
+/* findings */
+.findings{margin-top:72px}
+.sec-head{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--dim);padding-bottom:14px;border-bottom:0.5px solid var(--rule);margin-bottom:30px}
+.find-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.find{border:0.5px solid var(--rule);background:var(--bay);padding:26px 24px;border-radius:3px;border-top:2px solid var(--burn)}
+.find:first-child{border-top-color:var(--fail)}
+.find h3{font-family:var(--display);font-weight:700;font-size:19px;letter-spacing:-0.02em;margin-bottom:12px;line-height:1.22}
+.find p{color:var(--dim);font-size:14px;margin-bottom:12px}
+.find p:last-child{margin-bottom:0}
+.find b{color:var(--ink);font-weight:500}
+.fix{font-family:var(--mono);font-size:11.5px;color:var(--live);border-top:0.5px solid var(--rule);padding-top:13px;margin-top:16px;display:block}
+
+/* seams */
+.seams{margin-top:72px;border:0.5px solid var(--rule);border-radius:3px;padding:30px 28px;background:var(--bay)}
+.seams h3{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--burn);margin-bottom:20px}
+.seams ul{list-style:none;display:grid;gap:11px}
+.seams li{font-size:14px;color:var(--dim);padding-left:20px;position:relative}
+.seams li::before{content:"";position:absolute;left:0;top:9px;width:7px;height:0.5px;background:var(--burn)}
+.seams li b{color:var(--ink);font-weight:500}
+
+.foot{margin-top:56px;padding-top:24px;border-top:0.5px solid var(--rule);font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+.reveal{opacity:0;transform:translateY(14px);transition:opacity 0.7s var(--ease),transform 0.7s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion: reduce){.reveal{opacity:1;transform:none;transition:none}}
+
+@media (max-width:900px){
+  .wrap{padding:0 18px 64px}
+  .mast{padding:44px 0 30px}
+  .controls{grid-template-columns:1fr 1fr}
+  .ctrl{border-bottom:0.5px solid var(--rule)}
+  .ctrl:nth-child(2n){border-right:none}
+  .lanes{grid-template-columns:1fr}
+  .lane{border-right:none;border-bottom:0.5px solid var(--rule)}
+  .find-grid{grid-template-columns:1fr}
+  .delta-note{margin-left:0;text-align:left}
+}
+</style>
+</head>
+<body>
+
+<div class="rail">
+  <div class="rail-in">
+    <div class="mark">Resultant<span>AI</span></div>
+    <div class="rail-sep"></div>
+    <div class="rail-title">n8n scrape to Claude pipeline audit</div>
+    <div class="rail-tag">Prototype. Sample volumes.</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="mast">
+    <div class="eyebrow">Two ways to wire the same four steps</div>
+    <h1>Scrape, clean, Claude, export. The build either <em>holds or it lies to you</em>.</h1>
+    <p class="lede">Both lanes below are the workflow you described. Same trigger, same sources, same model, same export. The difference is where the items get grouped and which node does the fetching. Move the dials and watch what that difference costs. <b>Lane A reports success either way.</b></p>
+  </div>
+
+  <div class="console">
+    <div class="console-head"><span class="dot"></span> Run parameters</div>
+
+    <div class="controls">
+      <div class="ctrl">
+        <label for="rows">Records per run</label>
+        <output id="rowsOut">400</output>
+        <input type="range" id="rows" min="50" max="5000" step="50" value="400">
+      </div>
+      <div class="ctrl">
+        <label for="runs">Runs per week</label>
+        <output id="runsOut">5</output>
+        <input type="range" id="runs" min="1" max="40" step="1" value="5">
+      </div>
+      <div class="ctrl">
+        <label for="src">Source page type</label>
+        <output id="srcOut" style="font-size:15px;line-height:1.3">Static HTML</output>
+        <select id="src">
+          <option value="static">Static HTML, server rendered</option>
+          <option value="js" selected>JavaScript rendered</option>
+          <option value="gated">Paginated or behind a login</option>
+        </select>
+      </div>
+      <div class="ctrl">
+        <label for="rate">Model input rate</label>
+        <output id="rateOut">$3.00<span class="unit"> / 1M tok</span></output>
+        <input type="range" id="rate" min="0.25" max="15" step="0.25" value="3">
+      </div>
+    </div>
+
+    <div class="lanes">
+      <div class="lane lane-a">
+        <div class="lane-name">Lane A. Wired the obvious way</div>
+        <div class="lane-sub" id="subA">HTTP Request fetches the page. Every record flows straight into the model node.</div>
+        <div class="chain" id="chainA"></div>
+        <div class="readout">
+          <div class="cell" id="cA1"><k>Records that arrive</k><v>0</v><small></small></div>
+          <div class="cell" id="cA2"><k>Model calls per run</k><v>0</v><small></small></div>
+          <div class="cell hot" id="cA3"><k>Spend on repeated instructions</k><v>0%</v><small></small></div>
+          <div class="cell warm" id="cA4"><k>Monthly model cost</k><v>$0</v><small></small></div>
+        </div>
+      </div>
+
+      <div class="lane lane-b">
+        <div class="lane-name">Lane B. Wired the way it survives</div>
+        <div class="lane-sub" id="subB">A render capable scraper fetches. Records are deduped, gated, then grouped before the model sees them.</div>
+        <div class="chain" id="chainB"></div>
+        <div class="readout">
+          <div class="cell cool" id="cB1"><k>Records that arrive</k><v>0</v><small></small></div>
+          <div class="cell" id="cB2"><k>Model calls per run</k><v>0</v><small></small></div>
+          <div class="cell cool" id="cB3"><k>Spend on repeated instructions</k><v>0%</v><small></small></div>
+          <div class="cell cool" id="cB4"><k>Monthly model cost</k><v>$0</v><small></small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="delta">
+      <span class="delta-k">Monthly difference</span>
+      <span class="delta-v" id="deltaV">$0</span>
+      <span class="delta-note" id="deltaNote"></span>
+    </div>
+  </div>
+
+  <div class="findings reveal">
+    <div class="sec-head">Where these builds actually break</div>
+    <div class="find-grid">
+      <div class="find">
+        <h3>A green checkmark on an empty payload</h3>
+        <p>The HTTP Request node pulls raw page source. On a page that renders its content client side, the source it pulls is the shell, and the data was never in it. The node does not error. The Code node cleans nothing. The model dutifully analyzes nothing. <b>The execution log shows a clean run.</b></p>
+        <p>This is the failure that survives a demo and shows up three weeks later when someone finally checks the export against the site.</p>
+        <span class="fix">Fix: render capable fetch, plus a row count assertion that fails the run loudly instead of exporting silence.</span>
+      </div>
+      <div class="find">
+        <h3>Your instructions billed once per record</h3>
+        <p>Every node in n8n runs once per input item by default. Hand the model node 400 records and you have bought 400 calls. The record data is small. The instruction block riding along on each of those calls is not.</p>
+        <p><b>At normal record counts the instructions, not the data, are the majority of the bill.</b> The workflow looks identical on the canvas either way.</p>
+        <span class="fix">Fix: gate junk before the model, group records into batches, send the instruction block once per batch.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="seams reveal">
+    <h3>What this prototype is and is not</h3>
+    <ul>
+      <li><b>The failure modes are real.</b> Client side rendering returning an empty shell to a plain HTTP fetch, and per item execution multiplying a fixed instruction block, are both documented n8n behaviors, not projections.</li>
+      <li><b>The volumes are sample data.</b> Nothing here touches your sources. Record counts, token sizes, and yield rates are set to plausible defaults so the shape of the math is visible.</li>
+      <li><b>Input tokens only.</b> Output token cost is excluded. Including it widens the gap between the lanes, it does not narrow it.</li>
+      <li><b>The model rate is yours to set.</b> The dial is a slider, not a quoted price. Set it to whatever your account actually pays.</li>
+      <li><b>Instruction block modeled at 850 tokens, record payload at 220.</b> Long instructions push Lane A worse. Short ones pull it closer. The crossover is far below any realistic prompt.</li>
+      <li><b>Batch size fixed at 25 records per call.</b> Real batch size depends on record width and the model context you are targeting. It is a tuning decision, not a constant.</li>
+      <li><b>What this does not show.</b> Retry and error branch behavior, source specific rate limits, or export schema validation. Those are build decisions, not calculator inputs.</li>
+    </ul>
+  </div>
+
+  <div class="foot">
+    <span>ResultantAI. Built as a proof artifact for an n8n automation scope.</span>
+    <span>All fixed price phases include 60 days of post delivery support.</span>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var INSTR = 850, ROW = 220, BATCH = 25, WEEKS = 4.33, GATE = 0.30;
+
+  var SRC = {
+    static:{ label:"Static HTML", aYield:1.00, bYield:0.99,
+             aNode:["HTTP Request","ok","fetched"],
+             sub:"Server rendered pages. Lane A survives this one, and only this one." },
+    js:{ label:"JavaScript rendered", aYield:0.00, bYield:0.98,
+             aNode:["HTTP Request","bad","empty shell"],
+             sub:"Content loads client side. The raw source Lane A fetches does not contain it." },
+    gated:{ label:"Paginated or gated", aYield:0.14, bYield:0.96,
+             aNode:["HTTP Request","warn","page 1 only"],
+             sub:"Pagination and login walls. Lane A gets the first page and stops without complaining." }
+  };
+
+  var el = function(id){ return document.getElementById(id); };
+  var rows=el("rows"), runs=el("runs"), src=el("src"), rate=el("rate");
+
+  function money(n){
+    if(n >= 1000) return "$" + Math.round(n).toLocaleString();
+    if(n >= 100)  return "$" + n.toFixed(0);
+    return "$" + n.toFixed(2);
+  }
+  function num(n){ return Math.round(n).toLocaleString(); }
+
+  function chain(target, nodes){
+    var host = el(target), out = "";
+    for(var i=0;i<nodes.length;i++){
+      out += '<div class="node ' + nodes[i][1] + '">' +
+             '<span class="nm">' + nodes[i][0] + '</span>' +
+             '<span class="st">' + nodes[i][2] + '</span></div>';
+    }
+    host.innerHTML = out;
+  }
+
+  function set(id, value, note){
+    var c = el(id);
+    c.querySelector("v").textContent = value;
+    c.querySelector("small").textContent = note || "";
+  }
+
+  function render(){
+    var R = parseInt(rows.value,10),
+        W = parseInt(runs.value,10),
+        S = SRC[src.value],
+        P = parseFloat(rate.value);
+
+    el("rowsOut").textContent = num(R);
+    el("runsOut").textContent = W;
+    el("srcOut").textContent = S.label;
+    el("rateOut").innerHTML = "$" + P.toFixed(2) + '<span class="unit"> / 1M tok</span>';
+    el("subA").textContent = S.sub;
+
+    // Lane A: one call per arriving record, instructions re-sent every call
+    var aRows  = Math.round(R * S.aYield);
+    var aCalls = aRows;
+    var aInstr = aCalls * INSTR;
+    var aData  = aRows * ROW;
+    var aTok   = aInstr + aData;
+    var aOver  = aTok ? (aInstr / aTok) * 100 : 0;
+    var aCost  = (aTok / 1e6) * P * W * WEEKS;
+
+    // Lane B: gate junk, then group survivors into batches
+    var bRows  = Math.round(R * S.bYield);
+    var bKeep  = Math.round(bRows * (1 - GATE));
+    var bCalls = Math.max(1, Math.ceil(bKeep / BATCH));
+    var bInstr = bCalls * INSTR;
+    var bData  = bKeep * ROW;
+    var bTok   = bInstr + bData;
+    var bOver  = bTok ? (bInstr / bTok) * 100 : 0;
+    var bCost  = (bTok / 1e6) * P * W * WEEKS;
+
+    chain("chainA", [
+      ["Schedule Trigger","ok","armed"],
+      S.aNode,
+      ["Code. Clean and format", aRows ? "ok" : "bad", aRows ? "parsed" : "nothing to parse"],
+      ["Anthropic Chat Model", aRows ? "warn" : "bad", aRows ? aCalls + " calls" : "0 calls"],
+      ["Google Sheets. Export", aRows ? "ok" : "bad", aRows ? "written" : "wrote 0 rows"]
+    ]);
+
+    chain("chainB", [
+      ["Schedule Trigger","ok","armed"],
+      ["Firecrawl or Apify. Render and fetch","ok","fetched"],
+      ["Code. Normalize and dedupe","ok","structured"],
+      ["Filter. Rule gate before spend","ok", Math.round(bRows-bKeep) + " dropped"],
+      ["Loop Over Items. Batch of " + BATCH,"ok", bCalls + " batches"],
+      ["Anthropic Chat Model. Schema out","ok", bCalls + " calls"],
+      ["Assert row count, then export","ok","verified"]
+    ]);
+
+    set("cA1", num(aRows),
+      aRows === 0 ? "Run status still reports success" :
+      (S.aYield < 1 ? "Silently short by " + num(R - aRows) : "Full yield"));
+    set("cA2", num(aCalls), aRows ? "One call per record" : "Nothing reached the model");
+    set("cA3", aRows ? aOver.toFixed(0) + "%" : "n/a", aRows ? "Same instructions, resent " + num(aCalls) + " times" : "No spend, no data");
+    set("cA4", money(aCost), aRows ? "Paid for mostly repetition" : "Free, and useless");
+
+    set("cB1", num(bRows), "Assertion fails the run if this drops");
+    set("cB2", num(bCalls), num(bKeep) + " records grouped into batches");
+    set("cB3", bOver.toFixed(0) + "%", "Instructions sent once per batch");
+    set("cB4", money(bCost), "Spend follows the data, not the repetition");
+
+    var d = aCost - bCost;
+    el("deltaV").textContent = d > 0 ? money(d) + " saved" : money(Math.abs(d)) + " more";
+    el("deltaV").style.color = d > 0 ? "var(--live)" : "var(--burn)";
+
+    if(aRows === 0){
+      el("deltaNote").textContent = "Lane A is cheaper here because it is not doing anything. It exports an empty file every run and reports success. That is the expensive outcome, and it is not on this line.";
+    } else if(S.aYield < 1){
+      el("deltaNote").textContent = "Lane A also drops " + num(R - aRows) + " records per run without raising an error, so its cost is buying partial data at full instruction overhead.";
+    } else {
+      el("deltaNote").textContent = "Same records, same model, same export. The entire difference is where items get grouped before the model node.";
+    }
+  }
+
+  [rows, runs, rate].forEach(function(i){ i.addEventListener("input", render); });
+  src.addEventListener("change", render);
+  render();
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
+  }, { threshold:0.12 });
+  document.querySelectorAll(".reveal").forEach(function(n){ io.observe(n); });
+})();
+</script>
+</body>
+</html>
